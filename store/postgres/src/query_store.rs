@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::store::ReplicaId;
 use graph::components::store::QueryStore as QueryStoreTrait;
-use graph::prelude::{Store as _, *};
+use graph::prelude::*;
 
 pub(crate) struct QueryStore {
     replica_id: ReplicaId,
