@@ -4,7 +4,10 @@ use crate::store::ReplicaId;
 use graph::components::store::QueryStore as QueryStoreTrait;
 use graph::prelude::*;
 
+use crate::primary::Site;
+
 pub(crate) struct QueryStore {
+    site: Arc<Site>,
     replica_id: ReplicaId,
     store: Arc<crate::Store>,
     for_subscription: bool,
@@ -14,9 +17,11 @@ impl QueryStore {
     pub(crate) fn new(
         store: Arc<crate::Store>,
         for_subscription: bool,
+        site: Arc<Site>,
         replica_id: ReplicaId,
     ) -> Self {
         QueryStore {
+            site,
             replica_id,
             store,
             for_subscription,
@@ -29,9 +34,10 @@ impl QueryStoreTrait for QueryStore {
         &self,
         query: EntityQuery,
     ) -> Result<Vec<BTreeMap<String, graphql_parser::query::Value>>, QueryExecutionError> {
+        assert_eq!(&self.site.deployment, &query.subgraph_id);
         let conn = self
             .store
-            .get_entity_conn(&query.subgraph_id, self.replica_id)
+            .get_entity_conn(self.site.as_ref(), self.replica_id)
             .map_err(|e| QueryExecutionError::StoreError(e.into()))?;
         self.store.execute_query(&conn, query)
     }
@@ -45,7 +51,9 @@ impl QueryStoreTrait for QueryStore {
     /// Return true if the deployment with the given id is fully synced,
     /// and return false otherwise. Errors from the store are passed back up
     fn is_deployment_synced(&self, id: SubgraphDeploymentId) -> Result<bool, Error> {
-        let entity = self.store.get(SubgraphDeploymentEntity::key(id))?;
+        let entity = self
+            .store
+            .get(&self.site, SubgraphDeploymentEntity::key(id))?;
         entity
             .map(|entity| match entity.get("synced") {
                 Some(Value::Bool(true)) => Ok(true),
