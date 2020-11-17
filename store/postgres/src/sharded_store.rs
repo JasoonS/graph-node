@@ -18,7 +18,7 @@ use graph::{
 };
 
 use crate::store::{ReplicaId, Store};
-use crate::{metadata, notification_listener::JsonNotification, primary};
+use crate::{deployment, notification_listener::JsonNotification, primary};
 
 #[cfg(debug_assertions)]
 lazy_static! {
@@ -111,7 +111,7 @@ impl ShardedStore {
 
         let exists_and_synced = |id: &SubgraphDeploymentId| {
             let conn = self.store(&id)?.get_conn()?;
-            metadata::exists_and_synced(&conn, id.as_str())
+            deployment::exists_and_synced(&conn, id.as_str())
         };
 
         let conn = self.primary.get_conn()?;
@@ -332,7 +332,7 @@ impl StoreTrait for ShardedStore {
             let changes = primary::promote_deployment(&pconn, id)?;
             Ok(StoreEvent::new(changes))
         })?;
-        dconn.transaction(|| metadata::set_synced(&dconn, id))?;
+        dconn.transaction(|| deployment::set_synced(&dconn, id))?;
         Ok(self.send_store_event(&event)?)
     }
 
